@@ -36,9 +36,9 @@
             // btnProceed_Click
             // 
             this.btnProceed_Click.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
-            this.btnProceed_Click.Location = new System.Drawing.Point(228, 49);
+            this.btnProceed_Click.Location = new System.Drawing.Point(17, 77);
             this.btnProceed_Click.Name = "btnProceed_Click";
-            this.btnProceed_Click.Size = new System.Drawing.Size(258, 37);
+            this.btnProceed_Click.Size = new System.Drawing.Size(184, 37);
             this.btnProceed_Click.TabIndex = 42;
             this.btnProceed_Click.Text = "Proceed";
             this.btnProceed_Click.UseVisualStyleBackColor = true;
@@ -47,17 +47,17 @@
             // txtConfirm
             // 
             this.txtConfirm.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
-            this.txtConfirm.Location = new System.Drawing.Point(228, 11);
+            this.txtConfirm.Location = new System.Drawing.Point(17, 39);
             this.txtConfirm.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             this.txtConfirm.Name = "txtConfirm";
-            this.txtConfirm.Size = new System.Drawing.Size(258, 30);
+            this.txtConfirm.Size = new System.Drawing.Size(184, 30);
             this.txtConfirm.TabIndex = 43;
             // 
             // label1
             // 
             this.label1.AutoSize = true;
             this.label1.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
-            this.label1.Location = new System.Drawing.Point(12, 14);
+            this.label1.Location = new System.Drawing.Point(12, 9);
             this.label1.Name = "label1";
             this.label1.Size = new System.Drawing.Size(185, 25);
             this.label1.TabIndex = 44;
@@ -67,11 +67,12 @@
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(499, 91);
+            this.ClientSize = new System.Drawing.Size(499, 124);
             this.Controls.Add(this.label1);
             this.Controls.Add(this.txtConfirm);
             this.Controls.Add(this.btnProceed_Click);
             this.Name = "Confirmation";
+            this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
             this.Text = "Confirmation";
             this.ResumeLayout(false);
             this.PerformLayout();

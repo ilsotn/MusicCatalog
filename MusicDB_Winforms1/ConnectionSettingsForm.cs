@@ -6,6 +6,8 @@ namespace MusicDB_Winforms1
 {
     public partial class ConnectionSettingsForm : Form
     {
+        public bool IsAdminMode { get; private set; }
+
         public string ServerName 
         {
             get
@@ -78,13 +80,28 @@ namespace MusicDB_Winforms1
 
         private void btnConnect_Click(object sender, EventArgs e)
         {
-            this.DialogResult = DialogResult.OK;
+            Confirmation confirmationForm = new Confirmation();
+            if (confirmationForm.ShowDialog() == DialogResult.OK && confirmationForm.EnteredPassword == "123456")
+            {
+                IsAdminMode = true; 
+                this.DialogResult = DialogResult.OK;
+            }
+            else
+            {
+                IsAdminMode = false;
+            }
         }
 
 
         private void txtServerName_TextChanged(object sender, EventArgs e)
         {
 
+        }
+
+        private void button1_Click(object sender, EventArgs e)
+        {
+            IsAdminMode = false;
+            this.DialogResult = DialogResult.OK;
         }
     }
 }

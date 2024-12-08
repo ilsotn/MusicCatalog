@@ -5,6 +5,7 @@ using System.Data;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Forms;
 
 namespace MusicDB_Winforms1
 {
@@ -38,6 +39,9 @@ namespace MusicDB_Winforms1
                 DataTable albumsTable = new DataTable();
                 adapter.Fill(albumsTable);
                 connection.Close();
+
+                ConfigureAlbums(albumsTable);
+
                 return albumsTable;
             }
         }
@@ -86,8 +90,10 @@ namespace MusicDB_Winforms1
                 }
                 else
                 {
-                    command.Parameters.AddWithValue("@AlbumCover", DBNull.Value);
-                }
+                    command.Parameters.Add("@AlbumCover", SqlDbType.Binary).Value = DBNull.Value;
+
+/*                    command.Parameters.AddWithValue("@AlbumCover", DBNull.Value);
+*/                }
 
                 connection.Open();
                 command.ExecuteNonQuery();
@@ -124,7 +130,146 @@ namespace MusicDB_Winforms1
 
             return songsTable;
         }
+        public void CreateAlbumWithSongs(
+     string albumName,
+     string artistName,
+     string genreName,
+     int releaseYear,
+     int monthlyListeners,
+     List<(string SongName, int Duration)> songs,
+     byte[] albumCoverData)
+        {
+            using (SqlConnection connection = new SqlConnection(_connectionString))
+            {
+                connection.Open();
+                SqlTransaction transaction = connection.BeginTransaction();
 
-        // TODO: form inheritage
+                try
+                {
+                    SqlCommand cmdAlbum = new SqlCommand("spCreateAlbum", connection, transaction)
+                    {
+                        CommandType = CommandType.StoredProcedure
+                    };
+                    cmdAlbum.Parameters.AddWithValue("@AlbumName", albumName);
+                    cmdAlbum.Parameters.AddWithValue("@ReleaseYear", releaseYear);
+                    cmdAlbum.Parameters.AddWithValue("@ArtistName", artistName);
+                    cmdAlbum.Parameters.AddWithValue("@GenreName", genreName);
+                    cmdAlbum.Parameters.AddWithValue("@MonthlyListeners", monthlyListeners);
+                    cmdAlbum.Parameters.AddWithValue("@Country", "UNK"); 
+
+                    cmdAlbum.Parameters.AddWithValue("@AlbumCover", (object)albumCoverData ?? DBNull.Value);
+
+                    SqlParameter albumIDParam = new SqlParameter("@AlbumID", SqlDbType.Int)
+                    {
+                        Direction = ParameterDirection.Output
+                    };
+                    cmdAlbum.Parameters.Add(albumIDParam);
+
+                    cmdAlbum.ExecuteNonQuery();
+                    int albumID = (int)albumIDParam.Value;
+
+                    foreach (var song in songs)
+                    {
+                        SqlCommand cmdSong = new SqlCommand("spAddSongToAlbum", connection, transaction)
+                        {
+                            CommandType = CommandType.StoredProcedure
+                        };
+                        cmdSong.Parameters.AddWithValue("@AlbumID", albumID);
+                        cmdSong.Parameters.AddWithValue("@SongName", song.SongName);
+                        cmdSong.Parameters.AddWithValue("@Duration", song.Duration);
+
+                        cmdSong.ExecuteNonQuery();
+                    }
+
+                    transaction.Commit();
+                }
+                catch
+                {
+                    transaction.Rollback();
+                    throw; 
+                }
+            }
+        }
+        public void AddSongToAlbum(int albumID, string songName, int duration)
+        {
+            using (SqlConnection connection = new SqlConnection(_connectionString))
+            {
+                SqlCommand cmd = new SqlCommand("spAddSongToAlbum", connection)
+                {
+                    CommandType = CommandType.StoredProcedure
+                };
+
+                cmd.Parameters.AddWithValue("@AlbumID", albumID);
+                cmd.Parameters.AddWithValue("@SongName", songName);
+                cmd.Parameters.AddWithValue("@Duration", duration);
+
+                connection.Open();
+                cmd.ExecuteNonQuery();
+            }
+        }
+
+        public void DeleteSongFromAlbum(int songID, int albumID)
+        {
+            using (SqlConnection connection = new SqlConnection(_connectionString))
+            {
+                SqlCommand cmd = new SqlCommand("spDeleteSongFromAlbum", connection)
+                {
+                    CommandType = CommandType.StoredProcedure
+                };
+
+                cmd.Parameters.AddWithValue("@SongID", songID);
+                cmd.Parameters.AddWithValue("@AlbumID", albumID);
+
+                connection.Open();
+                cmd.ExecuteNonQuery();
+            }
+        }
+
+        public (string AlbumName, byte[] AlbumCover, DataTable SongsTable) GetAlbumDetails(int albumID)
+        {
+            DataTable songsTable = GetSongsByAlbumID(albumID);
+            using (SqlConnection connection = new SqlConnection(_connectionString))
+            {
+                SqlCommand command = new SqlCommand("spGetAlbumByID", connection)
+                {
+                    CommandType = CommandType.StoredProcedure
+                };
+
+                command.Parameters.AddWithValue("@AlbumID", albumID);
+
+                connection.Open();
+                using (SqlDataReader reader = command.ExecuteReader())
+                {
+                    if (reader.Read())
+                    {
+                        string albumName = reader["AlbumName"].ToString();
+                        byte[] albumCover = reader["AlbumCover"] as byte[];
+
+                        return (albumName, albumCover, songsTable);
+                    }
+                }
+            }
+            return (null, null, songsTable);
+        }
+
+        public void ConfigureAlbums(DataTable albumsTable)
+        {
+            if (albumsTable.Columns.Contains("AlbumCover"))
+            {
+                albumsTable.Columns["AlbumCover"].ExtendedProperties["IsHidden"] = true;
+            }
+
+            if (albumsTable.Columns.Contains("AlbumID"))
+            {
+                albumsTable.Columns["AlbumID"].ExtendedProperties["IsHidden"] = true;
+            }
+        }
+
+/*        public DataTable GetConfiguredAlbums(bool showDeleted, string artistName, string genreName, int? startYear, int? endYear, int? minListeners, int? maxListeners)
+        {
+            DataTable albumsTable = GetAlbums(showDeleted, artistName, genreName, startYear, endYear, minListeners, maxListeners);
+            return albumsTable;
+        }*/
+
     }
 }

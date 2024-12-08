@@ -10,6 +10,7 @@ namespace MusicDB_Winforms1
 {
     public partial class Form1 : Form
     {
+        private bool _isAdminMode;
         private AlbumService albumService;
         private string _connectionString;
 
@@ -30,6 +31,7 @@ namespace MusicDB_Winforms1
                 if (settingsForm.ShowDialog() == DialogResult.OK)
                 {
                     _connectionString = settingsForm.ConnectionString;
+                    _isAdminMode = settingsForm.IsAdminMode; 
                 }
                 else
                 {
@@ -37,6 +39,7 @@ namespace MusicDB_Winforms1
                     this.Close();
                 }
             }
+
             try
             {
                 albumService = new AlbumService(_connectionString);
@@ -47,19 +50,22 @@ namespace MusicDB_Winforms1
                 MessageBox.Show("Invalid credentials. Unable to connect.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 this.Close();
             }
+            btnCreate.Enabled = _isAdminMode;
+            btnUpdate.Enabled = _isAdminMode;
+            btnDelete.Enabled = _isAdminMode;
         }
+
         private void dataGridView1_SelectionChanged(object sender, EventArgs e)
         {
             if (dataGridView1.SelectedRows.Count > 0)
             {
-                string albumName = dataGridView1.SelectedRows[0].Cells["AlbumName"].Value.ToString();
-                albumLabel.Text = albumName;
+                int albumID = Convert.ToInt32(dataGridView1.SelectedRows[0].Cells["AlbumID"].Value);
+                var albumDetails = albumService.GetAlbumDetails(albumID); //new method
+                albumLabel.Text = albumDetails.AlbumName ?? "Unknown Album";
 
-                var albumCoverData = dataGridView1.SelectedRows[0].Cells["AlbumCover"].Value as byte[];
-
-                if (albumCoverData != null && albumCoverData.Length > 0)
+                if (albumDetails.AlbumCover != null && albumDetails.AlbumCover.Length > 0)
                 {
-                    using (var ms = new System.IO.MemoryStream(albumCoverData))
+                    using (var ms = new System.IO.MemoryStream(albumDetails.AlbumCover))
                     {
                         pictureBox1.Image = Image.FromStream(ms);
                     }
@@ -69,39 +75,31 @@ namespace MusicDB_Winforms1
                     pictureBox1.Image = null;
                 }
 
-                int albumID = Convert.ToInt32(dataGridView1.SelectedRows[0].Cells["AlbumID"].Value);
-                DataTable songsTable = albumService.GetSongsByAlbumID(albumID);
-                dataGridView2.DataSource = songsTable;
+                dataGridView2.DataSource = albumDetails.SongsTable;
 
-                if (songsTable.Columns.Contains("SongID"))
+                if (albumDetails.SongsTable.Columns.Contains("SongID"))
                 {
                     dataGridView2.Columns["SongID"].Visible = false;
                 }
             }
         }
 
-
         private void ReadAlbums(bool showDeleted = false, string artistName = null, string genreName = null, int? startYear = null, int? endYear = null, int? minListeners = null, int? maxListeners = null)
         {
             DataTable albumsTable = albumService.GetAlbums(showDeleted, artistName, genreName, startYear, endYear, minListeners, maxListeners);
             dataGridView1.DataSource = albumsTable;
-
-            if (albumsTable.Columns.Contains("AlbumCover"))
-            {
-                dataGridView1.Columns["AlbumCover"].Visible = false;
-            }
-
-            dataGridView1.Columns["AlbumID"].Visible = false; 
         }
 
         private void btnCreate_Click(object sender, EventArgs e)
         {
             CreateAlbum createAlbumForm = new CreateAlbum(_connectionString);
+            createAlbumForm.AlbumCreated += OnAlbumCreated; 
             createAlbumForm.ShowDialog();
         }
 
-        private void btnRead_Click(object sender, EventArgs e)
+        private void OnAlbumCreated()
         {
+            ReadAlbums();
         }
 
         private void btnDelete_Click(object sender, EventArgs e)
@@ -109,7 +107,8 @@ namespace MusicDB_Winforms1
             if (dataGridView1.SelectedRows.Count > 0)
             {
                 Confirmation confirmationForm = new Confirmation();
-                if (confirmationForm.ShowDialog() == DialogResult.OK && confirmationForm.EnteredPassword == "123456")
+                confirmationForm.ChangeLabel("Are you sure you want to delete? If so type YES");
+                if (confirmationForm.ShowDialog() == DialogResult.OK && confirmationForm.EnteredPassword == "YES")
                 {
                     int albumID = Convert.ToInt32(dataGridView1.SelectedRows[0].Cells["AlbumID"].Value);
                     albumService.DeleteAlbum(albumID); 
@@ -117,11 +116,11 @@ namespace MusicDB_Winforms1
                 }
                 else
                 {
-                    MessageBox.Show("Incorrect password. Deletion canceled.");
+                    MessageBox.Show("Deletion canceled.");
                 }
             }
         }
-      
+
 
         private void btnUpdate_Click(object sender, EventArgs e)
         {
@@ -135,31 +134,25 @@ namespace MusicDB_Winforms1
                 int monthlyListeners = Convert.ToInt32(dataGridView1.SelectedRows[0].Cells["MonthlyListeners"].Value);
                 byte[] albumCoverData = dataGridView1.SelectedRows[0].Cells["AlbumCover"].Value as byte[];
 
-                UpdateAlbum updateForm = new UpdateAlbum(albumID, albumName, artistName, genreName, releaseYear, monthlyListeners, _connectionString);
+                DataTable songsTable = albumService.GetSongsByAlbumID(albumID);
+                UpdateAlbum updateForm = new UpdateAlbum(
+                    albumID,
+                    albumName,
+                    artistName,
+                    genreName,
+                    releaseYear,
+                    monthlyListeners,
+                    _connectionString,
+                    songsTable
+                );
+
+                updateForm.AlbumUpdated += () => ReadAlbums();
                 updateForm.ShowDialog();
-                ReadAlbums();
+            }
+            else
+            {
+                MessageBox.Show("Please select an album to update.", "No Selection", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
         }
-
-        private void progressBar1_Click(object sender, EventArgs e)
-        {
-
-        }
-
-        private void pictureBox1_Click(object sender, EventArgs e)
-        {
-
-        }
-
-        private void button1_Click(object sender, EventArgs e)
-        {
-        }
-
-        /*        
-                int currentRowIndex = dataGridView1.CurrentCell.RowIndex;
-                DataTable dataTable = (DataTable)dataGridView1.DataSource;
-
-                DataRow currentRow = dataTable.Rows[currentRowIndex];
-        */
     }
 }

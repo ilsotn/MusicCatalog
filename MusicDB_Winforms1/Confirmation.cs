@@ -26,5 +26,9 @@ namespace MusicDB_Winforms1
             this.DialogResult = DialogResult.OK;
             this.Close();
         }
+        public void ChangeLabel(string label)
+        {
+            label1.Text = label;
+        }
     }
 }
