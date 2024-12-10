@@ -42,7 +42,6 @@
             this.btnProceed_Click.TabIndex = 42;
             this.btnProceed_Click.Text = "Proceed";
             this.btnProceed_Click.UseVisualStyleBackColor = true;
-            this.btnProceed_Click.Click += new System.EventHandler(this.btnProceed_Click_Click);
             // 
             // txtConfirm
             // 

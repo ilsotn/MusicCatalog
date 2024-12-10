@@ -6,6 +6,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.Drawing;
+using System.IO;
 
 namespace MusicDB_Winforms1
 {
@@ -91,9 +93,7 @@ namespace MusicDB_Winforms1
                 else
                 {
                     command.Parameters.Add("@AlbumCover", SqlDbType.Binary).Value = DBNull.Value;
-
-/*                    command.Parameters.AddWithValue("@AlbumCover", DBNull.Value);
-*/                }
+                }
 
                 connection.Open();
                 command.ExecuteNonQuery();
@@ -225,9 +225,9 @@ namespace MusicDB_Winforms1
             }
         }
 
-        public (string AlbumName, byte[] AlbumCover, DataTable SongsTable) GetAlbumDetails(int albumID)
+        // Method to retrieve the album name
+        public string GetAlbumName(int albumID)
         {
-            DataTable songsTable = GetSongsByAlbumID(albumID);
             using (SqlConnection connection = new SqlConnection(_connectionString))
             {
                 SqlCommand command = new SqlCommand("spGetAlbumByID", connection)
@@ -242,14 +242,59 @@ namespace MusicDB_Winforms1
                 {
                     if (reader.Read())
                     {
-                        string albumName = reader["AlbumName"].ToString();
-                        byte[] albumCover = reader["AlbumCover"] as byte[];
-
-                        return (albumName, albumCover, songsTable);
+                        return reader["AlbumName"].ToString();
                     }
                 }
             }
-            return (null, null, songsTable);
+            return null;
+        }
+
+        // Method to retrieve the album cover
+        // 2 out parameters
+        public byte[] GetAlbumCover(int albumID)
+        {
+            using (SqlConnection connection = new SqlConnection(_connectionString))
+            {
+                SqlCommand command = new SqlCommand("spGetAlbumByID", connection)
+                {
+                    CommandType = CommandType.StoredProcedure
+                };
+
+                command.Parameters.AddWithValue("@AlbumID", albumID);
+
+                connection.Open();
+                using (SqlDataReader reader = command.ExecuteReader())
+                {
+                    if (reader.Read())
+                    {
+                        return reader["AlbumCover"] as byte[];
+                    }
+                }
+            }
+            return null;
+        }
+
+        public Image GetAlbumCoverAsImage(int albumID)
+        {
+            byte[] albumCover = GetAlbumCover(albumID);
+            if (albumCover != null && albumCover.Length > 0)
+            {
+                using (var ms = new System.IO.MemoryStream(albumCover))
+                {
+                    return Image.FromStream(ms);
+                }
+            }
+            return null;
+        }
+
+        public DataTable GetPreparedSongsTable(int albumID)
+        {
+            DataTable songsTable = GetSongsByAlbumID(albumID);
+            if (songsTable.Columns.Contains("SongID"))
+            {
+                songsTable.Columns["SongID"].ColumnMapping = MappingType.Hidden; // Alternative to hiding in UI
+            }
+            return songsTable;
         }
 
         public void ConfigureAlbums(DataTable albumsTable)
@@ -265,11 +310,52 @@ namespace MusicDB_Winforms1
             }
         }
 
-/*        public DataTable GetConfiguredAlbums(bool showDeleted, string artistName, string genreName, int? startYear, int? endYear, int? minListeners, int? maxListeners)
+        public bool ConfirmDeletion(string password)
         {
-            DataTable albumsTable = GetAlbums(showDeleted, artistName, genreName, startYear, endYear, minListeners, maxListeners);
-            return albumsTable;
-        }*/
+            const string requiredPassword = "YES"; 
+            return string.Equals(password, requiredPassword, StringComparison.OrdinalIgnoreCase);
+        }
 
+        //updateAlbum functions
+
+        public int ParseIntOrDefault(string input, int defaultValue)
+        {
+            return string.IsNullOrEmpty(input) ? defaultValue : int.Parse(input);
+        }
+
+        public byte[] ConvertImageToByteArray(Image image)
+        {
+            using (MemoryStream ms = new MemoryStream())
+            {
+                image.Save(ms, image.RawFormat);
+                return ms.ToArray();
+            }
+        }
+
+        public void AddSongToTable(DataTable songsTable, string songName, int duration)
+        {
+            DataRow newRow = songsTable.NewRow();
+            newRow["SongName"] = songName;
+            newRow["Duration"] = duration;
+            songsTable.Rows.Add(newRow);
+        }
+
+        public void RemoveSongFromTable(DataTable songsTable, int songID)
+        {
+            foreach (DataRow row in songsTable.Rows)
+            {
+                if (Convert.ToInt32(row["SongID"]) == songID)
+                {
+                    songsTable.Rows.Remove(row);
+                    break;
+                }
+            }
+        }
+        
+        // TODO: move password to a separate file
+        public static bool IsValidPassword(string password)
+        {
+            return password == "123456";
+        }
     }
 }

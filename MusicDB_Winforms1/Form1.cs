@@ -60,29 +60,18 @@ namespace MusicDB_Winforms1
             if (dataGridView1.SelectedRows.Count > 0)
             {
                 int albumID = Convert.ToInt32(dataGridView1.SelectedRows[0].Cells["AlbumID"].Value);
-                var albumDetails = albumService.GetAlbumDetails(albumID); //new method
-                albumLabel.Text = albumDetails.AlbumName ?? "Unknown Album";
+                string albumName = albumService.GetAlbumName(albumID);
+                albumLabel.Text = albumName ?? "Unknown Album";
 
-                if (albumDetails.AlbumCover != null && albumDetails.AlbumCover.Length > 0)
-                {
-                    using (var ms = new System.IO.MemoryStream(albumDetails.AlbumCover))
-                    {
-                        pictureBox1.Image = Image.FromStream(ms);
-                    }
-                }
-                else
-                {
-                    pictureBox1.Image = null;
-                }
+                Image albumImage = albumService.GetAlbumCoverAsImage(albumID); 
+                pictureBox1.Image = albumImage;
 
-                dataGridView2.DataSource = albumDetails.SongsTable;
-
-                if (albumDetails.SongsTable.Columns.Contains("SongID"))
-                {
-                    dataGridView2.Columns["SongID"].Visible = false;
-                }
+                DataTable songsTable = albumService.GetPreparedSongsTable(albumID); 
+                dataGridView2.DataSource = songsTable;
             }
         }
+
+
 
         private void ReadAlbums(bool showDeleted = false, string artistName = null, string genreName = null, int? startYear = null, int? endYear = null, int? minListeners = null, int? maxListeners = null)
         {
@@ -104,22 +93,26 @@ namespace MusicDB_Winforms1
 
         private void btnDelete_Click(object sender, EventArgs e)
         {
-            if (dataGridView1.SelectedRows.Count > 0)
+            if (dataGridView1.SelectedRows.Count == 0)
             {
-                Confirmation confirmationForm = new Confirmation();
-                confirmationForm.ChangeLabel("Are you sure you want to delete? If so type YES");
-                if (confirmationForm.ShowDialog() == DialogResult.OK && confirmationForm.EnteredPassword == "YES")
-                {
-                    int albumID = Convert.ToInt32(dataGridView1.SelectedRows[0].Cells["AlbumID"].Value);
-                    albumService.DeleteAlbum(albumID); 
-                    ReadAlbums();
-                }
-                else
-                {
-                    MessageBox.Show("Deletion canceled.");
-                }
+                MessageBox.Show("No albums to delete.");
+                return;
+            }
+
+            Confirmation confirmationForm = new Confirmation("Are you sure you want to delete? If so type YES");
+
+            if (confirmationForm.ShowDialog() == DialogResult.OK && albumService.ConfirmDeletion(confirmationForm.EnteredPassword))
+            {
+                int albumID = Convert.ToInt32(dataGridView1.SelectedRows[0].Cells["AlbumID"].Value);
+                albumService.DeleteAlbum(albumID);
+                ReadAlbums();
+            }
+            else
+            {
+                MessageBox.Show("Deletion canceled.");
             }
         }
+
 
 
         private void btnUpdate_Click(object sender, EventArgs e)
@@ -146,8 +139,8 @@ namespace MusicDB_Winforms1
                     songsTable
                 );
 
-                updateForm.AlbumUpdated += () => ReadAlbums();
                 updateForm.ShowDialog();
+                ReadAlbums();
             }
             else
             {

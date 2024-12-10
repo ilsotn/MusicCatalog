@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
+using System.Data.SqlClient;
 using System.Drawing;
 using System.Linq;
 using System.Text;
@@ -21,11 +22,12 @@ namespace MusicDB_Winforms1
             this.albumID = albumID;
             albumService = new AlbumService(connectionString);
         }
+
         private void btnConfirm_Click_Click(object sender, EventArgs e)
         {
             Confirmation confirmationForm = new Confirmation();
 
-            if (confirmationForm.ShowDialog() == DialogResult.OK && confirmationForm.EnteredPassword == "123456")
+            if (confirmationForm.ShowDialog() == DialogResult.OK && AlbumService.IsValidPassword(confirmationForm.EnteredPassword))
             {
                 try
                 {
@@ -33,7 +35,7 @@ namespace MusicDB_Winforms1
                     MessageBox.Show("Album deleted (soft delete) successfully.");
                     this.Close();
                 }
-                catch (Exception ex)
+                catch (SqlException ex)
                 {
                     MessageBox.Show("An error occurred while deleting the album: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }

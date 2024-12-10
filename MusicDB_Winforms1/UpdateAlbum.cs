@@ -3,6 +3,7 @@ using System.IO;
 using System.Windows.Forms;
 using System.Drawing;
 using System.Data;
+using System.Data.SqlClient;
 
 namespace MusicDB_Winforms1
 {
@@ -10,7 +11,6 @@ namespace MusicDB_Winforms1
     {
         private int albumID;
         private DataTable songsTable;
-        public event Action AlbumUpdated;
 
         public UpdateAlbum(
             int albumID, string albumName, string artistName, string genreName,
@@ -28,11 +28,16 @@ namespace MusicDB_Winforms1
 
             this.songsTable = songsTable;
 
+            ConfigureSongsTable(songsTable); // Use the new helper function
+        }
+
+        private void ConfigureSongsTable(DataTable songsTable)
+        {
             dataGridViewSongs.DataSource = songsTable;
 
             if (songsTable.Columns.Contains("SongID"))
             {
-                dataGridViewSongs.Columns["SongID"].Visible = false;
+                songsTable.Columns["SongID"].ColumnMapping = MappingType.Hidden;
             }
         }
 
@@ -43,13 +48,13 @@ namespace MusicDB_Winforms1
                 string albumName = txtAlbumName.Text;
                 string artistName = txtArtistName.Text;
                 string genreName = txtGenreName.Text;
-                int releaseYear = string.IsNullOrEmpty(txtReleaseYear.Text) ? DateTime.Now.Year : int.Parse(txtReleaseYear.Text);
-                int monthlyListeners = string.IsNullOrEmpty(txtMonthlyListeners.Text) ? 0 : int.Parse(txtMonthlyListeners.Text);
+                int releaseYear = albumService.ParseIntOrDefault(txtReleaseYear.Text, DateTime.Now.Year);
+                int monthlyListeners = albumService.ParseIntOrDefault(txtMonthlyListeners.Text, 0);
 
+                // Update album using AlbumService
                 albumService.UpdateAlbum(albumID, albumName, artistName, genreName, releaseYear, monthlyListeners, albumCoverData);
 
                 MessageBox.Show("Album updated successfully!", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                AlbumUpdated?.Invoke();
                 this.Close();
             }
             catch (Exception ex)
@@ -66,24 +71,34 @@ namespace MusicDB_Winforms1
 
                 if (openFileDialog.ShowDialog() == DialogResult.OK)
                 {
+
+                    // DONE: exceptions
                     try
                     {
                         Image albumCover = Image.FromFile(openFileDialog.FileName);
                         pictureBoxAlbumCover.Image = albumCover;
-
-                        using (MemoryStream ms = new MemoryStream())
-                        {
-                            albumCover.Save(ms, albumCover.RawFormat);
-                            albumCoverData = ms.ToArray();
-                        }
+                        albumCoverData = albumService.ConvertImageToByteArray(albumCover);
+                    }
+                    catch (OutOfMemoryException)
+                    {
+                        MessageBox.Show("The file does not have a valid image format or is corrupted.", "Invalid Image", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                    catch (FileNotFoundException)
+                    {
+                        MessageBox.Show("The specified file could not be found. Please select a valid file.", "File Not Found", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                    catch (ArgumentException)
+                    {
+                        MessageBox.Show("The file path is invalid or is a URI. Please select a valid local image file.", "Invalid File Path", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     }
                     catch (Exception ex)
                     {
-                        MessageBox.Show($"Error loading cover image: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        MessageBox.Show($"An unexpected error occurred: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     }
                 }
             }
         }
+
 
         private void btnAddSong_Click(object sender, EventArgs e)
         {
@@ -102,19 +117,16 @@ namespace MusicDB_Winforms1
                     return;
                 }
 
+                // Add song to the database and update the table
                 albumService.AddSongToAlbum(albumID, songName, duration);
-
-                DataRow newRow = songsTable.NewRow();
-                newRow["SongName"] = songName;
-                newRow["Duration"] = duration;
-                songsTable.Rows.Add(newRow);
+                albumService.AddSongToTable(songsTable, songName, duration);
 
                 txtSongName.Clear();
                 txtSongDuration.Clear();
 
                 MessageBox.Show("Song added successfully!", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
-            catch (Exception ex)
+            catch (SqlException ex)
             {
                 MessageBox.Show($"Error adding song: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
@@ -122,42 +134,39 @@ namespace MusicDB_Winforms1
 
         private void button2_Click(object sender, EventArgs e)
         {
-            if (dataGridViewSongs.SelectedRows.Count > 0)
-            {
-                try
-                {
-                    int songID = Convert.ToInt32(dataGridViewSongs.SelectedRows[0].Cells["SongID"].Value);
-
-                    var confirmResult = MessageBox.Show("Are you sure you want to delete this song?",
-                                                        "Confirm Deletion",
-                                                        MessageBoxButtons.YesNo,
-                                                        MessageBoxIcon.Question);
-
-                    if (confirmResult == DialogResult.Yes)
-                    {
-                        albumService.DeleteSongFromAlbum(songID, albumID);
-
-                        foreach (DataRow row in songsTable.Rows)
-                        {
-                            if (Convert.ToInt32(row["SongID"]) == songID)
-                            {
-                                songsTable.Rows.Remove(row);
-                                break;
-                            }
-                        }
-
-
-                        MessageBox.Show("Song deleted successfully.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Error deleting song: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
-            }
-            else
+            if (dataGridViewSongs.SelectedRows.Count == 0)
             {
                 MessageBox.Show("Please select a song to delete.", "No Selection", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            try
+            {
+                // DONE tryparse
+                var selectedValue = dataGridViewSongs.SelectedRows[0].Cells["SongID"].Value;
+                if (selectedValue == null || !int.TryParse(selectedValue.ToString(), out int songID))
+                {
+                    MessageBox.Show("Invalid Song ID. Please select a valid song.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+
+                var confirmResult = MessageBox.Show("Are you sure you want to delete this song?",
+                                                     "Confirm Deletion",
+                                                     MessageBoxButtons.YesNo,
+                                                     MessageBoxIcon.Question);
+
+                if (confirmResult == DialogResult.Yes)
+                {
+                    // Delete song from the database and update the table
+                    albumService.DeleteSongFromAlbum(songID, albumID);
+                    albumService.RemoveSongFromTable(songsTable, songID);
+
+                    MessageBox.Show("Song deleted successfully.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error deleting song: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 

@@ -73,8 +73,8 @@
             // 
             // btnAddSong
             // 
-            this.btnAddSong.Location = new System.Drawing.Point(731, 267);
-            this.btnAddSong.Size = new System.Drawing.Size(193, 46);
+            this.btnAddSong.Location = new System.Drawing.Point(548, 228);
+            this.btnAddSong.Size = new System.Drawing.Size(151, 46);
             this.btnAddSong.Click += new System.EventHandler(this.btnAddSong_Click);
             // 
             // label6
@@ -88,15 +88,15 @@
             // 
             // button1
             // 
-            this.button1.Location = new System.Drawing.Point(-3, 279);
-            this.button1.Size = new System.Drawing.Size(667, 49);
+            this.button1.Location = new System.Drawing.Point(19, 278);
+            this.button1.Size = new System.Drawing.Size(829, 49);
             this.button1.Click += new System.EventHandler(this.button1_Click);
             // 
             // button2
             // 
-            this.button2.Location = new System.Drawing.Point(937, 267);
+            this.button2.Location = new System.Drawing.Point(700, 228);
             this.button2.Margin = new System.Windows.Forms.Padding(4, 2, 4, 2);
-            this.button2.Size = new System.Drawing.Size(192, 46);
+            this.button2.Size = new System.Drawing.Size(148, 46);
             this.button2.Click += new System.EventHandler(this.button2_Click);
             // 
             // label5
@@ -124,12 +124,14 @@
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(1232, 352);
+            this.ClientSize = new System.Drawing.Size(862, 336);
             this.Controls.Add(this.label5);
             this.Controls.Add(this.txtMonthlyListeners);
             this.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.Name = "UpdateAlbum";
             this.Text = "Update Album";
+            this.Controls.SetChildIndex(this.txtMonthlyListeners, 0);
+            this.Controls.SetChildIndex(this.label5, 0);
             this.Controls.SetChildIndex(this.button2, 0);
             this.Controls.SetChildIndex(this.txtSongName, 0);
             this.Controls.SetChildIndex(this.button1, 0);
@@ -147,8 +149,6 @@
             this.Controls.SetChildIndex(this.label7, 0);
             this.Controls.SetChildIndex(this.btnAddSong, 0);
             this.Controls.SetChildIndex(this.btnSelectCover, 0);
-            this.Controls.SetChildIndex(this.txtMonthlyListeners, 0);
-            this.Controls.SetChildIndex(this.label5, 0);
             ((System.ComponentModel.ISupportInitialize)(this.pictureBoxAlbumCover)).EndInit();
             this.ResumeLayout(false);
             this.PerformLayout();
